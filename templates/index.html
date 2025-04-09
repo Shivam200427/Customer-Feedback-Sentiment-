@@ -344,6 +344,57 @@
                 grid-template-columns: 1fr;
             }
         }
+
+
+
+
+
+        .transcript-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+        
+        .transcript-display {
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .transcript-content {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: var(--light-color);
+            border-radius: 8px;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .session-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .transcript-preview {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #555;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+
     </style>
 </head>
 <body>
@@ -401,8 +452,36 @@
                 <h3>Recording Notes</h3>
                 <textarea id="reviewText" rows="4" placeholder="Enter notes about this recording session..."></textarea>
             </div>
-                
+           
             
+
+
+
+
+
+
+
+
+
+
+            <div class="transcript-container">
+                <h3>Session Transcript</h3>
+                <div id="transcriptDisplay" class="transcript-display">
+                    <p>No transcript available. Start a recording to generate a transcript.</p>
+                </div>
+            </div>
+            
+
+
+
+
+
+
+
+
+
+
+
             <div class="sessions-container">
                 <h3>Recorded Sessions</h3>
                 <div id="sessionsList" class="session-list">
@@ -545,6 +624,12 @@
             });
         }
         
+
+
+
+
+
+
         function startRecording() {
             showLoading();
             
@@ -564,6 +649,8 @@
                     currentSessionId = data.session_id;
                     sessionStartTime = new Date();
                     updateUIState();
+                    document.getElementById('transcriptDisplay').innerHTML = 
+                    '<p>Recording in progress. Transcript will be generated when recording stops.</p>';
                 } else {
                     alert('Failed to start recording');
                 }
@@ -576,6 +663,11 @@
             });
         }
         
+
+
+
+
+
         function stopRecording(silent = false) {
             showLoading();
             
@@ -596,6 +688,8 @@
                         
                         // Refresh sessions list
                         fetchSessions();
+                        updateTranscriptDisplay(null);
+
                     }
                 } else {
                     if (!silent) {
@@ -615,6 +709,11 @@
             });
         }
         
+
+
+
+
+
         function saveEmotions() {
             if (!cameraRunning) return;
             
@@ -685,6 +784,26 @@
                     isRecording = data.is_recording;
                     updateUIState();
                 }
+
+
+
+
+
+
+
+                if (isRecording && currentSessionId) {
+                    // Periodically check for transcript updates (every 5 seconds)
+                    if (Math.floor(Date.now() / 1000) % 5 === 0) {
+                        updateTranscriptDisplay(currentSessionId);
+                    }
+                }
+
+
+
+
+
+
+
             })
             .catch(error => {
                 console.error('Error updating emotion data:', error);
@@ -778,12 +897,29 @@
                         <div class="session-date">${formattedDate}</div>
                         <div class="session-duration">${duration}</div>
                     </div>
+                    
                     ${session.review ? `<div class="session-review">"${session.review}"</div>` : ''}
+
+
+
+
+
+
+
+
+                    ${session.transcript ? 
+                    `<div class="transcript-preview">"${session.transcript.substring(0, 100)}${session.transcript.length > 100 ? '...' : ''}"</div>` : ''}
                     <div class="session-emotions">
                         ${emotionTags}
                     </div>
                 `;
                 
+
+
+
+
+
+
                 // Add click handler
                 item.addEventListener('click', () => {
                     showSessionDetails(session);
@@ -873,6 +1009,13 @@
                     <p>Video: <a href="${session.video_path}" target="_blank">View Recording</a></p>
                     <p>Audio: <a href="${session.audio_path}" target="_blank">Listen to Audio</a></p>
                 </div>
+
+
+                <!-- Add this to the modal content in the showSessionDetails function -->
+                <div style="margin-top: 20px;">
+                    <h3>Transcript</h3>
+                    <div class="transcript-content">${session.transcript || 'No transcript available'}</div>
+                </div>
             `;
             
             // Show modal
@@ -911,6 +1054,48 @@
                 sessionModal.style.display = 'none';
             }
         });
+
+
+
+
+
+
+
+
+        // Add this function to fetch and display transcript during recording
+    function updateTranscriptDisplay(sessionId) {
+        if (!sessionId) {
+            document.getElementById('transcriptDisplay').innerHTML = 
+                '<p>No transcript available. Start a recording to generate a transcript.</p>';
+            return;
+        }
+        
+        fetch(`/get_transcript/${sessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('transcriptDisplay').innerHTML = 
+                        `<p>${data.transcript || 'Processing transcript...'}</p>`;
+                } else {
+                    document.getElementById('transcriptDisplay').innerHTML = 
+                        '<p>No transcript available yet. Transcript will be generated when recording stops.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching transcript:', error);
+                document.getElementById('transcriptDisplay').innerHTML = 
+                    '<p>Error fetching transcript.</p>';
+            });
+    }
+
+
+
+
+
+
+
+
+    
     </script>
 </body>
 </html>

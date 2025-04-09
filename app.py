@@ -633,151 +633,199 @@ class EnhancedEmotionCaptureSystem:
 
 
 
-# Add this method to the EnhancedEmotionCaptureSystem class
-def transcribe_audio(self, audio_file_path):
-    """Transcribe audio file to text using Google Speech Recognition"""
-    # Create a directory for transcripts if it doesn't exist
-    transcripts_dir = os.path.join(self.recording_dir, "transcripts")
-    os.makedirs(transcripts_dir, exist_ok=True)
-    
-    transcript_file = os.path.join(transcripts_dir, "transcript.txt")
-    full_transcript = ""
-    
-    try:
-        # Initialize recognizer
-        recognizer = sr.Recognizer()
-        
-        # Load audio file with pydub for chunking
-        sound = AudioSegment.from_wav(audio_file_path)
-        
-        # Split audio where silence is 500ms or more and get chunks
-        chunks = split_on_silence(
-            sound,
-            min_silence_len=500,  # minimum silence length in ms
-            silence_thresh=sound.dBFS-14,  # silence threshold
-            keep_silence=500  # keep 500ms of leading/trailing silence
-        )
-        
-        # If the audio file is very short, use the whole file
-        if len(chunks) == 0:
-            chunks = [sound]
-        
-        print(f"Audio will be processed in {len(chunks)} chunks")
-        
-        # Process each chunk with recognition
-        for i, chunk in enumerate(chunks):
-            # Export chunk as a temporary wav file
-            chunk_filename = os.path.join(transcripts_dir, f"chunk{i}.wav")
-            chunk.export(chunk_filename, format="wav")
-            
-            # Recognize speech in the chunk
-            with sr.AudioFile(chunk_filename) as source:
-                audio_data = recognizer.record(source)
-                try:
-                    text = recognizer.recognize_google(audio_data)
-                    full_transcript += text + " "
-                    print(f"Chunk {i}: {text}")
-                except sr.UnknownValueError:
-                    print(f"Chunk {i}: Speech not recognized")
-                except sr.RequestError as e:
-                    print(f"Chunk {i}: Could not request results; {e}")
-            
-            # Remove temporary chunk file
-            os.remove(chunk_filename)
-        
-        # Save full transcript
-        with open(transcript_file, 'w') as f:
-            f.write(full_transcript.strip())
-        
-        return full_transcript.strip()
-        
-    except Exception as e:
-        print(f"Error in speech recognition: {e}")
-        
-        # Save error message
-        with open(transcript_file, 'w') as f:
-            f.write(f"Transcription error: {str(e)}")
-            
-        return f"Transcription error: {str(e)}"
 
-# Modify the stop_recording method in EnhancedEmotionCaptureSystem class
-# Update the method by adding the transcript processing section
-def stop_recording(self):
-    """Stop recording and save files"""
-    if not self.is_recording:
-        return False
+
+
+
+
+
+
+
+# ====================================================================================================================================================================================
+
+    # Add this method to the EnhancedEmotionCaptureSystem class
+    def transcribe_audio(self, audio_file_path):
+        """Transcribe audio file to text using Google Speech Recognition"""
+        # Create a directory for transcripts if it doesn't exist
+        transcripts_dir = os.path.join(self.recording_dir, "transcripts")
+        os.makedirs(transcripts_dir, exist_ok=True)
         
-    self.is_recording = False
-    
-    # Wait for threads to finish
-    if self.recording_thread:
-        self.recording_thread.join(timeout=1.0)
+        transcript_file = os.path.join(transcripts_dir, "transcript.txt")
+        full_transcript = ""
         
-    if self.audio_thread:
-        self.audio_thread.join(timeout=1.0)
-        
-    # Close video writer
-    if self.video_writer:
-        self.video_writer.release()
-        self.video_writer = None
-        
-    # Close audio stream
-    if self.audio_stream:
-        self.audio_stream.stop_stream()
-        self.audio_stream.close()
-        self.audio_stream = None
-        
-    # Save audio to WAV file
-    audio_path = os.path.join(self.recording_dir, f"audio.wav")
-    with wave.open(audio_path, 'wb') as wf:
-        wf.setnchannels(self.channels)
-        wf.setsampwidth(self.audio.get_sample_size(self.audio_format))
-        wf.setframerate(self.rate)
-        wf.writeframes(b''.join(self.audio_frames))
-    
-    # Transcribe audio to text
-    print("Starting audio transcription...")
-    transcript = self.transcribe_audio(audio_path)
-    print(f"Transcription complete: {transcript[:100]}...")
-        
-    # Save session info
-    session_end_time = datetime.now()
-    duration = (session_end_time - self.session_start_time).total_seconds()
-    
-    session_info = {
-        "session_id": self.session_id,
-        "start_time": self.session_start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "end_time": session_end_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "duration_seconds": duration,
-        "video_path": f"recordings/{self.session_id}/recording.mp4",
-        "audio_path": f"recordings/{self.session_id}/audio.wav",
-        "transcript": transcript,
-        "transcript_path": f"recordings/{self.session_id}/transcripts/transcript.txt",
-        "review": self.review_text,
-        "emotion_summary": self.compute_average_emotions()
-    }
-    
-    # Save to session file
-    json_path = os.path.join(self.recording_dir, f"session_info.json")
-    with open(json_path, 'w') as f:
-        json.dump(session_info, f, indent=4)
-        
-    # Update sessions history
-    sessions = []
-    if os.path.exists(self.sessions_file):
         try:
-            with open(self.sessions_file, 'r') as f:
-                sessions = json.load(f)
-        except json.JSONDecodeError:
-            sessions = []
+            # Initialize recognizer
+            recognizer = sr.Recognizer()
             
-    sessions.append(session_info)
-    
-    with open(self.sessions_file, 'w') as f:
-        json.dump(sessions, f, indent=4)
+            # Load audio file with pydub for chunking
+            sound = AudioSegment.from_wav(audio_file_path)
+            
+            # Split audio where silence is 500ms or more and get chunks
+            chunks = split_on_silence(
+                sound,
+                min_silence_len=500,  # minimum silence length in ms
+                silence_thresh=sound.dBFS-14,  # silence threshold
+                keep_silence=500  # keep 500ms of leading/trailing silence
+            )
+            
+            # If the audio file is very short, use the whole file
+            if len(chunks) == 0:
+                chunks = [sound]
+            
+            print(f"Audio will be processed in {len(chunks)} chunks")
+            
+            # Process each chunk with recognition
+            for i, chunk in enumerate(chunks):
+                # Export chunk as a temporary wav file
+                chunk_filename = os.path.join(transcripts_dir, f"chunk{i}.wav")
+                chunk.export(chunk_filename, format="wav")
+                
+                # Recognize speech in the chunk
+                with sr.AudioFile(chunk_filename) as source:
+                    audio_data = recognizer.record(source)
+                    try:
+                        text = recognizer.recognize_google(audio_data)
+                        full_transcript += text + " "
+                        print(f"Chunk {i}: {text}")
+                    except sr.UnknownValueError:
+                        print(f"Chunk {i}: Speech not recognized")
+                    except sr.RequestError as e:
+                        print(f"Chunk {i}: Could not request results; {e}")
+                
+                # Remove temporary chunk file
+                os.remove(chunk_filename)
+            
+            # Save full transcript
+            with open(transcript_file, 'w') as f:
+                f.write(full_transcript.strip())
+            
+            return full_transcript.strip()
+            
+        except Exception as e:
+            print(f"Error in speech recognition: {e}")
+            
+            # Save error message
+            with open(transcript_file, 'w') as f:
+                f.write(f"Transcription error: {str(e)}")
+                
+            return f"Transcription error: {str(e)}"
+
+    # Modify the stop_recording method in EnhancedEmotionCaptureSystem class
+    # Update the method by adding the transcript processing section
+    def stop_recording(self):
+        """Stop recording and save files"""
+        if not self.is_recording:
+            return False
+            
+        self.is_recording = False
         
-    print(f"Recording stopped and saved to {self.recording_dir}")
-    return session_info
+        # Wait for threads to finish
+        if self.recording_thread:
+            self.recording_thread.join(timeout=1.0)
+            
+        if self.audio_thread:
+            self.audio_thread.join(timeout=1.0)
+            
+        # Close video writer
+        if self.video_writer:
+            self.video_writer.release()
+            self.video_writer = None
+            
+        # Close audio stream
+        if self.audio_stream:
+            self.audio_stream.stop_stream()
+            self.audio_stream.close()
+            self.audio_stream = None
+            
+        # Save audio to WAV file
+        audio_path = os.path.join(self.recording_dir, "audio.wav")
+        with wave.open(audio_path, 'wb') as wf:
+            wf.setnchannels(self.channels)
+            wf.setsampwidth(self.audio.get_sample_size(self.audio_format))
+            wf.setframerate(self.rate)
+            wf.writeframes(b''.join(self.audio_frames))
+        
+        # Create session info with basic data first
+        session_end_time = datetime.now()
+        duration = (session_end_time - self.session_start_time).total_seconds()
+        
+        session_info = {
+            "session_id": self.session_id,
+            "start_time": self.session_start_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "end_time": session_end_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "duration_seconds": duration,
+            "video_path": f"recordings/{self.session_id}/recording.mp4",
+            "audio_path": f"recordings/{self.session_id}/audio.wav",
+            "review": self.review_text,
+            "emotion_summary": self.compute_average_emotions(),
+            "transcript": "Processing...",  # Placeholder
+            "transcript_path": f"recordings/{self.session_id}/transcripts/transcript.txt"
+        }
+        
+        # Save initial session info (without transcript)
+        json_path = os.path.join(self.recording_dir, "session_info.json")
+        with open(json_path, 'w') as f:
+            json.dump(session_info, f, indent=4)
+        
+        # Start transcription in a separate thread to avoid blocking
+        def transcribe_and_update():
+            try:
+                print("Starting audio transcription...")
+                transcript = self.transcribe_audio(audio_path)
+                print(f"Transcription complete: {transcript[:100]}...")
+                
+                # Update session info with transcript
+                session_info["transcript"] = transcript
+                
+                # Save updated session info
+                with open(json_path, 'w') as f:
+                    json.dump(session_info, f, indent=4)
+                    
+                # Update sessions history
+                sessions = []
+                if os.path.exists(self.sessions_file):
+                    try:
+                        with open(self.sessions_file, 'r') as f:
+                            sessions = json.load(f)
+                    except json.JSONDecodeError:
+                        sessions = []
+                        
+                # Find and update the session in history
+                for i, session in enumerate(sessions):
+                    if session["session_id"] == self.session_id:
+                        sessions[i] = session_info
+                        break
+                
+                with open(self.sessions_file, 'w') as f:
+                    json.dump(sessions, f, indent=4)
+                    
+            except Exception as e:
+                print(f"Error in transcription process: {e}")
+        
+        # Start transcription in background
+        threading.Thread(target=transcribe_and_update, daemon=True).start()
+            
+        print(f"Recording stopped and saved to {self.recording_dir}")
+        return session_info
+# ====================================================================================================================================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # Create system instance
@@ -875,6 +923,27 @@ def get_sessions():
         except Exception as e:
             return jsonify({"success": False, "error": str(e)})
     return jsonify({"success": True, "sessions": []})
+
+# ====================================================================================================================================================================================
+
+# Add a new endpoint to access transcripts
+@app.route('/get_transcript/<session_id>', methods=['GET'])
+def get_transcript(session_id):
+    """Get transcript for a specific session"""
+    transcript_path = os.path.join(emotion_system.recordings_dir, session_id, "transcripts", "transcript.txt")
+    
+    if os.path.exists(transcript_path):
+        try:
+            with open(transcript_path, 'r') as f:
+                transcript = f.read()
+            return jsonify({"success": True, "transcript": transcript})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)})
+    
+    return jsonify({"success": False, "error": "Transcript not found"})
+
+# ====================================================================================================================================================================================
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
