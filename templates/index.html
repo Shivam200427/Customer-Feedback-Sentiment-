@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Emotion Analysis System</title>
+    <style>
+        :root {
+            --primary-color: #4285F4;
+            --secondary-color: #34A853;
+            --danger-color: #EA4335;
+            --neutral-color: #FBBC05;
+            --light-color: #F8F9FA;
+            --dark-color: #202124;
+            --accent-color: #9C27B0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: var(--light-color);
+            color: var(--dark-color);
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+        }
+        
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .video-container {
+            flex: 1;
+            min-width: 640px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: #000;
+            position: relative;
+        }
+        
+        #video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 10;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #startBtn {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        #stopBtn {
+            background-color: var(--danger-color);
+            color: white;
+        }
+        
+        #recordBtn {
+            background-color: var(--accent-color);
+            color: white;
+        }
+        
+        #stopRecordBtn {
+            background-color: var(--neutral-color);
+            color: var(--dark-color);
+        }
+        
+        .data-container {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .emotion-summary {
+            margin-bottom: 30px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background-color: var(--light-color);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: var(--dark-color);
+        }
+        
+        .emotion-bar {
+            height: 24px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .emotion-label {
+            width: 100px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .emotion-progress {
+            flex-grow: 1;
+            height: 100%;
+            background-color: #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .emotion-value {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.5s ease;
+        }
+        
+        .emotion-percentage {
+            margin-left: 10px;
+            width: 50px;
+            text-align: right;
+            font-weight: bold;
+        }
+        
+        .recording-form {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+        
+        .recording-form textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-family: inherit;
+            resize: vertical;
+        }
+        
+        .sessions-container {
+            margin-top: 30px;
+        }
+        
+        .session-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .session-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .session-item:hover {
+            background-color: var(--light-color);
+        }
+        
+        .session-item:last-child {
+            border-bottom: none;
+        }
+        
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .session-date {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .session-duration {
+            color: var(--neutral-color);
+            font-weight: bold;
+        }
+        
+        .session-review {
+            font-style: italic;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .session-emotions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .emotion-tag {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid var(--primary-color);
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .modal {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .close-modal {
+            border: none;
+            background: none;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .emotion-happy .emotion-value { background-color: #FBBC05; }
+        .emotion-sad .emotion-value { background-color: #4285F4; }
+        .emotion-angry .emotion-value { background-color: #EA4335; }
+        .emotion-surprised .emotion-value { background-color: #34A853; }
+        .emotion-fearful .emotion-value { background-color: #9C27B0; }
+        .emotion-disgusted .emotion-value { background-color: #795548; }
+        .emotion-neutral .emotion-value { background-color: #607D8B; }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .video-container, .data-container {
+                min-width: 100%;
+            }
+            
+            .controls {
+                flex-wrap: wrap;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Real-time Emotion Analysis System</h1>
+        <p>Monitor, record, and analyze facial emotions in real-time</p>
+    </header>
+    
+    <div class="main-container">
+        <div class="video-container">
+            <img id="video" src="/video_feed" alt="Video Stream">
+            <div class="controls">
+                <button id="startBtn">Start Camera</button>
+                <button id="stopBtn" disabled>Stop Camera</button>
+                <button id="recordBtn" disabled>Start Recording</button>
+                <button id="stopRecordBtn" disabled>Stop Recording</button>
+            </div>
+        </div>
+        
+        <div>
+            <h2>Tell us more about our product.</h2>
+        </div>
+
+        <div class="data-container">
+            <h2>Emotion Analytics</h2>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="facesDetected">0</div>
+                    <div class="stat-label">Faces Detected</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="sessionDuration">00:00</div>
+                    <div class="stat-label">Session Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="samplesCollected">0</div>
+                    <div class="stat-label">Samples Collected</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="recordedSessions">0</div>
+                    <div class="stat-label">Recorded Sessions</div>
+                </div>
+            </div>
+            
+            <div class="emotion-summary">
+                <h3>Current Emotions</h3>
+                <div id="emotionCharts">
+                    <!-- Emotion bars will be generated here -->
+                </div>
+                <button id="saveBtn" style="width: 100%; margin-top: 15px;">Save Emotion Snapshot</button>
+            </div>
+            
+            <div class="recording-form">
+                <h3>Recording Notes</h3>
+                <textarea id="reviewText" rows="4" placeholder="Enter notes about this recording session..."></textarea>
+            </div>
+                
+            
+            <div class="sessions-container">
+                <h3>Recorded Sessions</h3>
+                <div id="sessionsList" class="session-list">
+                    <!-- Session items will be generated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="overlay" id="sessionModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Session Details</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div id="modalContent">
+                <!-- Session details will be shown here -->
+            </div>
+        </div>
+    </div>
+    
+    <div class="loading" id="loadingIndicator">
+        <div class="spinner"></div>
+        <p>Processing...</p>
+    </div>
+    
+    <script>
+        // DOM Elements
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const recordBtn = document.getElementById('recordBtn');
+        const stopRecordBtn = document.getElementById('stopRecordBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const video = document.getElementById('video');
+        const emotionCharts = document.getElementById('emotionCharts');
+        const facesDetected = document.getElementById('facesDetected');
+        const sessionDuration = document.getElementById('sessionDuration');
+        const samplesCollected = document.getElementById('samplesCollected');
+        const recordedSessions = document.getElementById('recordedSessions');
+        const reviewText = document.getElementById('reviewText');
+        const sessionsList = document.getElementById('sessionsList');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const sessionModal = document.getElementById('sessionModal');
+        const modalContent = document.getElementById('modalContent');
+        const closeModal = document.querySelector('.close-modal');
+        
+        // State variables
+        let cameraRunning = false;
+        let isRecording = false;
+        let updateInterval = null;
+        let sessionStartTime = null;
+        let currentSessionId = null;
+        
+        // Emotion colors mapping
+        const emotionColors = {
+            happy: '#FBBC05',
+            sad: '#4285F4',
+            angry: '#EA4335',
+            surprised: '#34A853',
+            fearful: '#9C27B0',
+            disgusted: '#795548',
+            neutral: '#607D8B'
+        };
+        
+        // Event listeners
+        startBtn.addEventListener('click', startCamera);
+        stopBtn.addEventListener('click', stopCamera);
+        recordBtn.addEventListener('click', startRecording);
+        stopRecordBtn.addEventListener('click', stopRecording);
+        saveBtn.addEventListener('click', saveEmotions);
+        closeModal.addEventListener('click', () => {
+            sessionModal.style.display = 'none';
+        });
+        
+        // Initialize
+        fetchSessions();
+        
+        // Functions
+        function startCamera() {
+            showLoading();
+            
+            fetch('/start_camera', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    cameraRunning = true;
+                    video.src = '/video_feed?' + new Date().getTime();
+                    updateUIState();
+                    
+                    // Start updating emotion data
+                    startDataUpdates();
+                } else {
+                    alert('Failed to start camera');
+                }
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error starting camera:', error);
+                hideLoading();
+                alert('Error starting camera');
+            });
+        }
+        
+        function stopCamera() {
+            showLoading();
+            
+            // If recording, stop it first
+            if (isRecording) {
+                stopRecording(true).then(() => {
+                    completeStopCamera();
+                });
+            } else {
+                completeStopCamera();
+            }
+        }
+        
+        function completeStopCamera() {
+            fetch('/stop_camera', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    cameraRunning = false;
+                    stopDataUpdates();
+                    video.src = '';
+                    updateUIState();
+                    resetEmotionCharts();
+                } else {
+                    alert('Failed to stop camera');
+                }
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error stopping camera:', error);
+                hideLoading();
+                alert('Error stopping camera');
+            });
+        }
+        
+        function startRecording() {
+            showLoading();
+            
+            fetch('/start_recording', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    review: reviewText.value.trim()
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    isRecording = true;
+                    currentSessionId = data.session_id;
+                    sessionStartTime = new Date();
+                    updateUIState();
+                } else {
+                    alert('Failed to start recording');
+                }
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error starting recording:', error);
+                hideLoading();
+                alert('Error starting recording');
+            });
+        }
+        
+        function stopRecording(silent = false) {
+            showLoading();
+            
+            return fetch('/stop_recording', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    isRecording = false;
+                    currentSessionId = null;
+                    sessionStartTime = null;
+                    updateUIState();
+                    
+                    if (!silent) {
+                        // Clear review text
+                        reviewText.value = '';
+                        
+                        // Refresh sessions list
+                        fetchSessions();
+                    }
+                } else {
+                    if (!silent) {
+                        alert('Failed to stop recording');
+                    }
+                }
+                hideLoading();
+                return data;
+            })
+            .catch(error => {
+                console.error('Error stopping recording:', error);
+                hideLoading();
+                if (!silent) {
+                    alert('Error stopping recording');
+                }
+                throw error;
+            });
+        }
+        
+        function saveEmotions() {
+            if (!cameraRunning) return;
+            
+            showLoading();
+            
+            fetch('/save_emotions', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Emotion snapshot saved successfully');
+                    updateEmotionData();
+                } else {
+                    alert('Failed to save emotion data');
+                }
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error saving emotions:', error);
+                hideLoading();
+                alert('Error saving emotions');
+            });
+        }
+        
+        function startDataUpdates() {
+            // Update immediately
+            updateEmotionData();
+            
+            // Set interval for updates
+            updateInterval = setInterval(updateEmotionData, 1000);
+        }
+        
+        function stopDataUpdates() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        }
+        
+        function updateEmotionData() {
+            fetch('/get_emotions')
+            .then(response => response.json())
+            .then(data => {
+                // Update UI with emotion data
+                updateEmotionCharts(data.emotions);
+                
+                // Update stats
+                facesDetected.textContent = data.faces_detected;
+                samplesCollected.textContent = data.samples_collected;
+                recordedSessions.textContent = data.recorded_sessions;
+                
+                // Update session duration
+                if (isRecording && sessionStartTime) {
+                    const duration = Math.floor((new Date() - sessionStartTime) / 1000);
+                    const minutes = Math.floor(duration / 60).toString().padStart(2, '0');
+                    const seconds = (duration % 60).toString().padStart(2, '0');
+                    sessionDuration.textContent = `${minutes}:${seconds}`;
+                } else {
+                    const duration = Math.floor(data.session_duration);
+                    const minutes = Math.floor(duration / 60).toString().padStart(2, '0');
+                    const seconds = (duration % 60).toString().padStart(2, '0');
+                    sessionDuration.textContent = `${minutes}:${seconds}`;
+                }
+                
+                // Check recording state
+                if (data.is_recording !== isRecording) {
+                    isRecording = data.is_recording;
+                    updateUIState();
+                }
+            })
+            .catch(error => {
+                console.error('Error updating emotion data:', error);
+            });
+        }
+        
+        function updateEmotionCharts(emotions) {
+            if (!emotions || Object.keys(emotions).length === 0) {
+                resetEmotionCharts();
+                return;
+            }
+            
+            // Clear current charts
+            emotionCharts.innerHTML = '';
+            
+            // Sort emotions by value descending
+            const sortedEmotions = Object.entries(emotions)
+                .sort((a, b) => b[1] - a[1]);
+            
+            // Create bars for each emotion
+            sortedEmotions.forEach(([emotion, value]) => {
+                const emotionClass = emotion.toLowerCase();
+                const percentage = value.toFixed(1);
+                
+                const bar = document.createElement('div');
+                bar.className = `emotion-bar emotion-${emotionClass}`;
+                bar.innerHTML = `
+                    <div class="emotion-label">${emotion}</div>
+                    <div class="emotion-progress">
+                        <div class="emotion-value" style="width: ${percentage}%; background-color: ${emotionColors[emotionClass] || '#999'}"></div>
+                    </div>
+                    <div class="emotion-percentage">${percentage}%</div>
+                `;
+                
+                emotionCharts.appendChild(bar);
+            });
+        }
+        
+        function resetEmotionCharts() {
+            emotionCharts.innerHTML = '<p>No emotion data available</p>';
+        }
+        
+        function fetchSessions() {
+            fetch('/get_sessions')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateSessionsList(data.sessions);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching sessions:', error);
+            });
+        }
+        
+        function updateSessionsList(sessions) {
+            if (!sessions || sessions.length === 0) {
+                sessionsList.innerHTML = '<p>No recorded sessions available</p>';
+                return;
+            }
+            
+            // Sort sessions by start time descending
+            sessions.sort((a, b) => {
+                return new Date(b.start_time) - new Date(a.start_time);
+            });
+            
+            // Clear current list
+            sessionsList.innerHTML = '';
+            
+            // Create items for each session
+            sessions.forEach(session => {
+                const item = document.createElement('div');
+                item.className = 'session-item';
+                item.dataset.sessionId = session.session_id;
+                
+                // Format date
+                const sessionDate = new Date(session.start_time);
+                const formattedDate = sessionDate.toLocaleDateString() + ' ' + 
+                                     sessionDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                // Format duration
+                const minutes = Math.floor(session.duration_seconds / 60).toString().padStart(2, '0');
+                const seconds = Math.floor(session.duration_seconds % 60).toString().padStart(2, '0');
+                const duration = `${minutes}:${seconds}`;
+                
+                // Get top emotions
+                const emotionTags = createEmotionTags(session.emotion_summary);
+                
+                item.innerHTML = `
+                    <div class="session-header">
+                        <div class="session-date">${formattedDate}</div>
+                        <div class="session-duration">${duration}</div>
+                    </div>
+                    ${session.review ? `<div class="session-review">"${session.review}"</div>` : ''}
+                    <div class="session-emotions">
+                        ${emotionTags}
+                    </div>
+                `;
+                
+                // Add click handler
+                item.addEventListener('click', () => {
+                    showSessionDetails(session);
+                });
+                
+                sessionsList.appendChild(item);
+            });
+        }
+        
+        function createEmotionTags(emotions) {
+            if (!emotions || Object.keys(emotions).length === 0) {
+                return '';
+            }
+            
+            // Sort emotions by value descending and take top 3
+            const topEmotions = Object.entries(emotions)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3);
+            
+            // Create tags
+            return topEmotions.map(([emotion, value]) => {
+                const emotionClass = emotion.toLowerCase();
+                return `<span class="emotion-tag" style="background-color: ${emotionColors[emotionClass] || '#999'}">${emotion} ${value.toFixed(1)}%</span>`;
+            }).join('');
+        }
+        
+        function showSessionDetails(session) {
+            // Format date
+            const sessionDate = new Date(session.start_time);
+            const formattedDate = sessionDate.toLocaleDateString() + ' ' + 
+                                sessionDate.toLocaleTimeString();
+            
+            // Format end date
+            const sessionEndDate = new Date(session.end_time);
+            const formattedEndDate = sessionEndDate.toLocaleDateString() + ' ' + 
+                                    sessionEndDate.toLocaleTimeString();
+            
+            // Format duration
+            const minutes = Math.floor(session.duration_seconds / 60).toString().padStart(2, '0');
+            const seconds = Math.floor(session.duration_seconds % 60).toString().padStart(2, '0');
+            const duration = `${minutes}:${seconds}`;
+            
+            // Create emotion charts
+            let emotionChartsHTML = '';
+            if (session.emotion_summary && Object.keys(session.emotion_summary).length > 0) {
+                // Sort emotions by value descending
+                const sortedEmotions = Object.entries(session.emotion_summary)
+                    .sort((a, b) => b[1] - a[1]);
+                
+                // Create bars for each emotion
+                sortedEmotions.forEach(([emotion, value]) => {
+                    const emotionClass = emotion.toLowerCase();
+                    const percentage = value.toFixed(1);
+                    
+                    emotionChartsHTML += `
+                        <div class="emotion-bar emotion-${emotionClass}">
+                            <div class="emotion-label">${emotion}</div>
+                            <div class="emotion-progress">
+                                <div class="emotion-value" style="width: ${percentage}%; background-color: ${emotionColors[emotionClass] || '#999'}"></div>
+                            </div>
+                            <div class="emotion-percentage">${percentage}%</div>
+                        </div>
+                    `;
+                });
+            } else {
+                emotionChartsHTML = '<p>No emotion data available</p>';
+            }
+            
+            // Build modal content
+            modalContent.innerHTML = `
+                <div>
+                    <h3>Session Information</h3>
+                    <p><strong>Session ID:</strong> ${session.session_id}</p>
+                    <p><strong>Start Time:</strong> ${formattedDate}</p>
+                    <p><strong>End Time:</strong> ${formattedEndDate}</p>
+                    <p><strong>Duration:</strong> ${duration}</p>
+                    ${session.review ? `<p><strong>Review:</strong> ${session.review}</p>` : ''}
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>Emotion Summary</h3>
+                    <div>${emotionChartsHTML}</div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>Recordings</h3>
+                    <p>Video: <a href="${session.video_path}" target="_blank">View Recording</a></p>
+                    <p>Audio: <a href="${session.audio_path}" target="_blank">Listen to Audio</a></p>
+                </div>
+            `;
+            
+            // Show modal
+            sessionModal.style.display = 'flex';
+        }
+        
+        function updateUIState() {
+            // Update button states
+            startBtn.disabled = cameraRunning;
+            stopBtn.disabled = !cameraRunning;
+            recordBtn.disabled = !cameraRunning || isRecording;
+            stopRecordBtn.disabled = !isRecording;
+            saveBtn.disabled = !cameraRunning;
+            
+            // Update video container style
+            if (isRecording) {
+                video.style.border = '3px solid #EA4335';
+            } else if (cameraRunning) {
+                video.style.border = '3px solid #34A853';
+            } else {
+                video.style.border = 'none';
+            }
+        }
+        
+        function showLoading() {
+            loadingIndicator.style.display = 'block';
+        }
+        
+        function hideLoading() {
+            loadingIndicator.style.display = 'none';
+        }
+        
+        // Close modal when clicking outside of it
+        window.addEventListener('click', (event) => {
+            if (event.target === sessionModal) {
+                sessionModal.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
