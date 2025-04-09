@@ -1,3 +1,6 @@
+print("started")
+
+
 # app.py
 from flask import Flask, render_template, Response, jsonify, request
 import cv2
