@@ -121,6 +121,7 @@
         .data-container {
             flex: 1;
             min-width: 300px;
+            height: 100rem;
             padding: 20px;
             border-radius: 8px;
             background-color: white;
@@ -213,7 +214,7 @@
         }
         
         .session-list {
-            max-height: 300px;
+            max-height: 500px;
             overflow-y: auto;
             border: 1px solid #ddd;
             border-radius: 8px;
@@ -337,12 +338,7 @@
         .emotion-disgusted .emotion-value { background-color: #795548; }
         .emotion-neutral .emotion-value { background-color: #607D8B; }
         
-        .transcript-container {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: rgba(0, 0, 0, 0.05);
-            border-radius: 8px;
-        }
+      
         
         .transcript-display {
             max-height: 150px;
@@ -403,11 +399,16 @@
         .sentiment-container {
             margin-top: 20px;
             padding: 15px;
-            background-color: rgba(0, 0, 0, 0.05);
+            background-color: rgba(10, 10, 10, 0.05);
             border-radius: 8px;
         }
         
         .sentiment-display {
+            width: 100%;
+            border: 1px solid #ddd;
+            background-color: rgb(255, 255, 255);
+            border-radius: 4px;
+            margin-bottom: 10px;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -514,17 +515,17 @@
                 <textarea id="reviewText" rows="4" placeholder="Enter notes about this recording session..."></textarea>
             </div>
             
-            <div class="transcript-container">
-                <h3>Session Transcript</h3>
-                <div id="transcriptDisplay" class="transcript-display">
-                    <p>No transcript available. Start a recording to generate a transcript.</p>
-                </div>
-            </div>
-            
+           
             <div class="sessions-container">
                 <h3>Recorded Sessions</h3>
                 <div id="sessionsList" class="session-list">
                     <!-- Session items will be generated here -->
+                </div>
+            </div>
+            <div class="sentiment-container">
+                <h3>Transcript Sentiment Analysis</h3>
+                <div id="sentimentDisplay" class="sentiment-display">
+                    <p>No sentiment analysis available. Record a session to analyze transcript.</p>
                 </div>
             </div>
         </div>
@@ -547,12 +548,7 @@
         <p>Processing...</p>
     </div>
 
-    <div class="sentiment-container">
-        <h3>Transcript Sentiment Analysis</h3>
-        <div id="sentimentDisplay" class="sentiment-display">
-            <p>No sentiment analysis available. Record a session to analyze transcript.</p>
-        </div>
-    </div>
+    
     
     <script>
         // DOM Elements
@@ -738,19 +734,36 @@
                     if (!silent) {
                         // Clear review text
                         reviewText.value = '';
-                        
+                    
                         // Refresh sessions list
                         fetchSessions();
-                        
+                    
                         // Update transcript display
                         if (data.session_info && data.session_info.transcript) {
                             transcriptDisplay.innerHTML = `<p>${data.session_info.transcript}</p>`;
                         } else {
                             transcriptDisplay.innerHTML = '<p>Transcript is being processed...</p>';
-                            // Check for transcript periodically
                             checkTranscriptPeriodically(data.session_info.session_id);
                         }
+                    
+                        // ✅ Fetch and update sentiment analysis after transcript is saved
+                        setTimeout(() => {
+                            fetch('/get_sentiment')
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    updateSentimentDisplay(data);
+                                } else {
+                                    console.error('Sentiment fetch failed:', data.error);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error fetching sentiment:', error);
+                            });
+                        }, 4000); // Wait a few seconds to ensure transcript is saved
                     }
+
+                    
                 } else {
                     if (!silent) {
                         alert('Failed to stop recording');
@@ -778,6 +791,20 @@
                         clearInterval(checkInterval);
                         transcriptDisplay.innerHTML = `<p>${data.transcript}</p>`;
                         fetchSessions(); // Refresh sessions to show the new transcript
+        
+                        // ✅ NOW fetch sentiment (since we know the transcript is ready)
+                        fetch('/get_sentiment')
+                        .then(response => response.json())
+                        .then(sentimentData => {
+                            if (sentimentData.success) {
+                                updateSentimentDisplay(sentimentData);
+                            } else {
+                                console.error('Sentiment fetch failed:', sentimentData.error);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching sentiment:', error);
+                        });
                     }
                 })
                 .catch(error => {
@@ -785,6 +812,7 @@
                 });
             }, 3000); // Check every 3 seconds
         }
+        
         
         function saveEmotions() {
             if (!cameraRunning) return;
@@ -1012,35 +1040,32 @@
                 return `<span class="emotion-tag" style="background-color: ${emotionColors[emotionClass] || '#999'}">${emotion} ${value.toFixed(1)}%</span>`;
             }).join('');
         }
-        
         function showSessionDetails(session) {
             // Format date
             const sessionDate = new Date(session.start_time);
             const formattedDate = sessionDate.toLocaleDateString() + ' ' + 
-                                sessionDate.toLocaleTimeString();
-            
+                                  sessionDate.toLocaleTimeString();
+        
             // Format end date
             const sessionEndDate = new Date(session.end_time);
             const formattedEndDate = sessionEndDate.toLocaleDateString() + ' ' + 
-                                    sessionEndDate.toLocaleTimeString();
-            
+                                      sessionEndDate.toLocaleTimeString();
+        
             // Format duration
             const minutes = Math.floor(session.duration_seconds / 60).toString().padStart(2, '0');
             const seconds = Math.floor(session.duration_seconds % 60).toString().padStart(2, '0');
             const duration = `${minutes}:${seconds}`;
-            
+        
             // Create emotion charts
             let emotionChartsHTML = '';
             if (session.emotion_summary && Object.keys(session.emotion_summary).length > 0) {
-                // Sort emotions by value descending
                 const sortedEmotions = Object.entries(session.emotion_summary)
                     .sort((a, b) => b[1] - a[1]);
-                
-                // Create bars for each emotion
+        
                 sortedEmotions.forEach(([emotion, value]) => {
                     const emotionClass = emotion.toLowerCase();
                     const percentage = value.toFixed(1);
-                    
+        
                     emotionChartsHTML += `
                         <div class="emotion-bar emotion-${emotionClass}">
                             <div class="emotion-label">${emotion}</div>
@@ -1054,7 +1079,7 @@
             } else {
                 emotionChartsHTML = '<p>No emotion data available</p>';
             }
-            
+        
             // Build modal content
             modalContent.innerHTML = `
                 <div>
@@ -1065,24 +1090,44 @@
                     <p><strong>Duration:</strong> ${duration}</p>
                     ${session.review ? `<p><strong>Review:</strong> ${session.review}</p>` : ''}
                 </div>
-                
+        
                 <div style="margin-top: 20px;">
                     <h3>Emotion Summary</h3>
                     <div>${emotionChartsHTML}</div>
                 </div>
-                
+        
                 <div style="margin-top: 20px;">
                     <h3>Recordings</h3>
                     <p>Video: <a href="${session.video_path}" target="_blank">View Recording</a></p>
                     <p>Audio: <a href="${session.audio_path}" target="_blank">Listen to Audio</a></p>
                 </div>
-                
+        
                 <div style="margin-top: 20px;">
                     <h3>Transcript</h3>
                     <div class="transcript-content">${session.transcript || 'No transcript available'}</div>
                 </div>
             `;
-            
+        
+            // ✅ Insert sentiment display here
+            if (session.sentiment) {
+                const sentiment = session.sentiment;
+                const dominant = sentiment.sentiment;
+                const confidence = (sentiment.confidence * 100).toFixed(1);
+        
+                const sentimentHTML = `
+                    <div class="sentiment-summary sentiment-${dominant.toLowerCase()}-summary">
+                        <strong>Sentiment:</strong> ${dominant} (${confidence}% confidence)
+                    </div>
+                `;
+        
+                modalContent.innerHTML += `
+                    <div style="margin-top: 20px;">
+                        <h3>Session Sentiment</h3>
+                        ${sentimentHTML}
+                    </div>
+                `;
+            }
+        
             // Show modal
             sessionModal.style.display = 'flex';
         }
@@ -1122,48 +1167,52 @@
 
         function updateSentimentDisplay(sentimentData) {
             const sentimentDisplay = document.getElementById('sentimentDisplay');
-            
+        
             if (!sentimentData || !sentimentData.sentiment) {
                 sentimentDisplay.innerHTML = '<p>No sentiment analysis available</p>';
                 return;
             }
-            
+        
             const sentiment = sentimentData.sentiment;
-            const dominantClass = sentiment.dominant_sentiment.toLowerCase();
+            const dominant = sentiment.dominant_sentiment.toLowerCase();
             const confidence = (sentiment.confidence * 100).toFixed(1);
-            
-            let html = `
+        
+            sentimentDisplay.innerHTML = `
                 <div class="sentiment-bar sentiment-negative">
                     <div class="sentiment-label">Negative</div>
                     <div class="sentiment-progress">
-                        <div class="sentiment-value" style="width: ${sentiment.sentiment.Negative * 100}%"></div>
+                        <div class="sentiment-value" style="width: ${(sentiment.Negative * 100).toFixed(1)}%"></div>
                     </div>
-                    <div class="sentiment-percentage">${(sentiment.sentiment.Negative * 100).toFixed(1)}%</div>
+                    <div class="sentiment-percentage">${(sentiment.Negative * 100).toFixed(1)}%</div>
                 </div>
                 
                 <div class="sentiment-bar sentiment-neutral">
                     <div class="sentiment-label">Neutral</div>
                     <div class="sentiment-progress">
-                        <div class="sentiment-value" style="width: ${sentiment.sentiment.Neutral * 100}%"></div>
+                        <div class="sentiment-value" style="width: ${(sentiment.Neutral * 100).toFixed(1)}%"></div>
                     </div>
-                    <div class="sentiment-percentage">${(sentiment.sentiment.Neutral * 100).toFixed(1)}%</div>
+                    <div class="sentiment-percentage">${(sentiment.Neutral * 100).toFixed(1)}%</div>
                 </div>
                 
                 <div class="sentiment-bar sentiment-positive">
                     <div class="sentiment-label">Positive</div>
                     <div class="sentiment-progress">
-                        <div class="sentiment-value" style="width: ${sentiment.sentiment.Positive * 100}%"></div>
+                        <div class="sentiment-value" style="width: ${(sentiment.Positive * 100).toFixed(1)}%"></div>
                     </div>
-                    <div class="sentiment-percentage">${(sentiment.sentiment.Positive * 100).toFixed(1)}%</div>
+                    <div class="sentiment-percentage">${(sentiment.Positive * 100).toFixed(1)}%</div>
                 </div>
-                
-                <div class="sentiment-summary sentiment-${dominantClass}-summary">
+        
+                <div class="sentiment-summary sentiment-${dominant}-summary">
                     Dominant Sentiment: ${sentiment.dominant_sentiment} (${confidence}% confidence)
                 </div>
+                
+                <p>Sentiment data saved to <a href="/emotion_data/sentiment_analysis.json" target="_blank">sentiment_analysis.json</a></p>
             `;
-            
-            sentimentDisplay.innerHTML = html;
         }
+        
+        
+        
+        
     </script>
 </body>
 </html>

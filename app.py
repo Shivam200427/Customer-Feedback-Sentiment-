@@ -28,6 +28,15 @@ from transformers import AutoTokenizer
 import numpy as np
 from scipy.special import softmax
 
+from transformers import pipeline
+
+# Load RoBERTa model using pipeline
+roberta_model_name = "cardiffnlp/twitter-roberta-base-sentiment"
+roberta_nlp = pipeline("sentiment-analysis", model=roberta_model_name, tokenizer=roberta_model_name)
+
+# Set a neutral override threshold
+neutral_threshold = 0.90
+
 
 app = Flask(__name__)
 
@@ -137,42 +146,49 @@ class EnhancedEmotionCaptureSystem:
         return True
     
     def analyze_sentiment(self, text):
-            text = text[:512]  # Limit to model's max length
-            inputs = self.sentiment_tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
-            outputs = self.sentiment_model(**inputs)
-            scores = outputs[0][0].detach().numpy()
-            scores = softmax(scores)
-            
-            # Map sentiment labels to scores
-            sentiment_labels = ['negative', 'neutral', 'positive']
-            sentiment_scores = {label: score for label, score in zip(sentiment_labels, scores)}
-            
-            return sentiment_scores
+        result = roberta_nlp(text[:512])[0]
+        label = result["label"]
+        score = result["score"]
+
+        # Override to Neutral if below threshold
+        if score < neutral_threshold:
+            sentiment = "Neutral"
+        else:
+            label_mapping = {"LABEL_0": "Negative", "LABEL_1": "Neutral", "LABEL_2": "Positive"}
+            sentiment = label_mapping[label]
+
+        return {
+            "sentiment": sentiment,
+            "confidence": round(score, 4)
+        }
+
+
 
     def stop_camera(self):
         """Stop the camera and processing threads"""
         self.should_run = False
-        
-        # Stop recording if it's running
+
         if self.is_recording:
             self.stop_recording()
-        
+
         if self.camera_thread:
             self.camera_thread.join(timeout=1.0)
-            
+
         if self.processing_thread:
             self.processing_thread.join(timeout=1.0)
-            
+
         if self.camera:
             self.camera.release()
             self.camera = None
-            
+
+        self.current_frame = None
+        self.processed_frame = None
         self.is_running = False
-        
-        # Save final emotion data
+
         self.save_emotion_data()
         print("Camera and processing stopped")
         return True
+
 
     def start_recording(self, review_text=""):
         """Start recording video and audio"""
@@ -882,12 +898,13 @@ def start_recording():
 
 @app.route('/stop_recording', methods=['POST'])
 def stop_recording():
-    """Stop recording endpoint"""
-    session_info = emotion_system.stop_recording()
+    session_data = emotion_system.stop_recording()
     return jsonify({
-        "success": session_info is not None,
-        "session_info": session_info
+        "success": True if session_data else False,
+        "session_info": session_data
     })
+
+
 
 @app.route('/get_emotions', methods=['GET'])
 def get_emotions():
@@ -946,34 +963,51 @@ def get_transcript(session_id):
     
     return jsonify({"success": False, "error": "Transcript not found"})
 
-
-
 @app.route('/get_sentiment', methods=['GET'])
 def get_sentiment():
-    """Get sentiment analysis of latest transcript"""
-    latest_transcript_file = os.path.join(emotion_system.data_dir, "latest_transcript.json")
-    
-    if os.path.exists(latest_transcript_file):
-        try:
-            with open(latest_transcript_file, 'r') as f:
-                transcript_data = json.load(f)
-            
-            if transcript_data and transcript_data.get('transcript'):
-                sentiment = emotion_system.analyze_sentiment(transcript_data['transcript'])
-                return jsonify({
-                    "success": sentiment is not None,
-                    "sentiment": sentiment
-                })
-        except Exception as e:
-            return jsonify({
-                "success": False,
-                "error": str(e)
-            })
-    
-    return jsonify({
-        "success": False,
-        "error": "No transcript available"
-    })
+    try:
+        latest_transcript_file = os.path.join(emotion_system.data_dir, "latest_transcript.json")
+        if not os.path.exists(latest_transcript_file):
+            return jsonify({"success": False, "error": "Transcript not found"})
+
+        with open(latest_transcript_file, "r", encoding="utf-8") as f:
+            transcript_data = json.load(f)
+
+        text = transcript_data.get("transcript", "").strip()
+        if not text:
+            return jsonify({"success": False, "error": "Transcript is empty"})
+
+        # Get prediction from RoBERTa pipeline
+        prediction = emotion_system.analyze_sentiment(text)
+
+        # Save to sentiment_analysis.json
+        sentiment_data = {
+            "transcript": text,
+            "sentiment": prediction["sentiment"],
+            "confidence": prediction["confidence"]
+        }
+
+        sentiment_file = os.path.join(emotion_system.data_dir, "sentiment_analysis.json")
+        with open(sentiment_file, "w", encoding="utf-8") as f:
+            json.dump(sentiment_data, f, indent=4)
+
+        return jsonify({
+            "success": True,
+            "sentiment": {
+                "dominant_sentiment": prediction["sentiment"],
+                "confidence": prediction["confidence"],
+                "Negative": 1.0 if prediction["sentiment"] == "Negative" else 0.0,
+                "Neutral": 1.0 if prediction["sentiment"] == "Neutral" else 0.0,
+                "Positive": 1.0 if prediction["sentiment"] == "Positive" else 0.0
+            }
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
