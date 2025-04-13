@@ -17,17 +17,16 @@ import uuid
 import wave
 import pyaudio
 
-
-
-
-
 import speech_recognition as sr
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
 import os
 
-
-
+from transformers import AutoModelForSequenceClassification
+from transformers import TFAutoModelForSequenceClassification
+from transformers import AutoTokenizer
+import numpy as np
+from scipy.special import softmax
 
 
 app = Flask(__name__)
@@ -40,6 +39,10 @@ class EnhancedEmotionCaptureSystem:
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.recordings_dir, exist_ok=True)
         
+        # Sentiment analysis model
+        self.sentiment_model_path = "cardiffnlp/twitter-roberta-base-sentiment"
+        self.sentiment_tokenizer = AutoTokenizer.from_pretrained(self.sentiment_model_path)
+        self.sentiment_model = AutoModelForSequenceClassification.from_pretrained(self.sentiment_model_path)
         # JSON file paths
         self.current_data_file = os.path.join(self.data_dir, "current_emotions.json")
         self.history_data_file = os.path.join(self.data_dir, "emotion_history.json")
@@ -132,6 +135,19 @@ class EnhancedEmotionCaptureSystem:
         
         print("Camera and processing started")
         return True
+    
+    def analyze_sentiment(self, text):
+            text = text[:512]  # Limit to model's max length
+            inputs = self.sentiment_tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
+            outputs = self.sentiment_model(**inputs)
+            scores = outputs[0][0].detach().numpy()
+            scores = softmax(scores)
+            
+            # Map sentiment labels to scores
+            sentiment_labels = ['negative', 'neutral', 'positive']
+            sentiment_scores = {label: score for label, score in zip(sentiment_labels, scores)}
+            
+            return sentiment_scores
 
     def stop_camera(self):
         """Stop the camera and processing threads"""
@@ -631,19 +647,6 @@ class EnhancedEmotionCaptureSystem:
                 pass
         return 0
 
-
-
-
-
-
-
-
-
-
-
-# ====================================================================================================================================================================================
-
-    # Add this method to the EnhancedEmotionCaptureSystem class
     def transcribe_audio(self, audio_file_path):
         """Transcribe audio file to text using Google Speech Recognition"""
         # Create a directory for transcripts if it doesn't exist
@@ -709,9 +712,24 @@ class EnhancedEmotionCaptureSystem:
                 f.write(f"Transcription error: {str(e)}")
                 
             return f"Transcription error: {str(e)}"
+        
+    def save_latest_transcript(self, transcript):
+        latest_transcript_file = os.path.join(self.data_dir, "latest_transcript.json")
+        try:
+            # Create a simple structure with just the transcript text and timestamp
+            latest_data = {
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "transcript": transcript,
+                "session_id": self.session_id
+            }
+            with open(latest_transcript_file, 'w') as f:
+                json.dump(latest_data, f, indent=4)
+                print(f"Latest transcript saved to {latest_transcript_file}")
+                return True
+        except Exception as e:
+            print(f"Error saving latest transcript: {e}")
+            return False
 
-    # Modify the stop_recording method in EnhancedEmotionCaptureSystem class
-    # Update the method by adding the transcript processing section
     def stop_recording(self):
         """Stop recording and save files"""
         if not self.is_recording:
@@ -773,7 +791,7 @@ class EnhancedEmotionCaptureSystem:
                 print("Starting audio transcription...")
                 transcript = self.transcribe_audio(audio_path)
                 print(f"Transcription complete: {transcript[:100]}...")
-                
+
                 # Update session info with transcript
                 session_info["transcript"] = transcript
                 
@@ -781,6 +799,9 @@ class EnhancedEmotionCaptureSystem:
                 with open(json_path, 'w') as f:
                     json.dump(session_info, f, indent=4)
                     
+                # Save the latest transcript to a dedicated file
+                self.save_latest_transcript(transcript)
+                
                 # Update sessions history
                 sessions = []
                 if os.path.exists(self.sessions_file):
@@ -791,10 +812,16 @@ class EnhancedEmotionCaptureSystem:
                         sessions = []
                         
                 # Find and update the session in history
+                updated = False
                 for i, session in enumerate(sessions):
                     if session["session_id"] == self.session_id:
                         sessions[i] = session_info
+                        updated = True
                         break
+                        
+                # Add session if not found
+                if not updated:
+                    sessions.append(session_info)
                 
                 with open(self.sessions_file, 'w') as f:
                     json.dump(sessions, f, indent=4)
@@ -807,26 +834,6 @@ class EnhancedEmotionCaptureSystem:
             
         print(f"Recording stopped and saved to {self.recording_dir}")
         return session_info
-# ====================================================================================================================================================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # Create system instance
 emotion_system = EnhancedEmotionCaptureSystem()
@@ -924,9 +931,6 @@ def get_sessions():
             return jsonify({"success": False, "error": str(e)})
     return jsonify({"success": True, "sessions": []})
 
-# ====================================================================================================================================================================================
-
-# Add a new endpoint to access transcripts
 @app.route('/get_transcript/<session_id>', methods=['GET'])
 def get_transcript(session_id):
     """Get transcript for a specific session"""
@@ -942,8 +946,34 @@ def get_transcript(session_id):
     
     return jsonify({"success": False, "error": "Transcript not found"})
 
-# ====================================================================================================================================================================================
 
+
+@app.route('/get_sentiment', methods=['GET'])
+def get_sentiment():
+    """Get sentiment analysis of latest transcript"""
+    latest_transcript_file = os.path.join(emotion_system.data_dir, "latest_transcript.json")
+    
+    if os.path.exists(latest_transcript_file):
+        try:
+            with open(latest_transcript_file, 'r') as f:
+                transcript_data = json.load(f)
+            
+            if transcript_data and transcript_data.get('transcript'):
+                sentiment = emotion_system.analyze_sentiment(transcript_data['transcript'])
+                return jsonify({
+                    "success": sentiment is not None,
+                    "sentiment": sentiment
+                })
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "error": str(e)
+            })
+    
+    return jsonify({
+        "success": False,
+        "error": "No transcript available"
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

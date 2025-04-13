@@ -32,6 +32,12 @@
         h1 {
             color: var(--primary-color);
         }
+
+        .product-question {
+            
+            color: var(--accent-color);
+           
+        }
         
         .main-container {
             display: flex;
@@ -40,41 +46,45 @@
         }
         
         .video-container {
-            flex: 1;
-            min-width: 640px;
+            display: box;
+            width : 100%;   
+            height: 40rem;
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             background-color: #000;
             position: relative;
+            aspect-ratio: 4/9;  
         }
-        
+
         #video {
             width: 100%;
             height: auto;
             display: block;
+            object-fit: contain; /* Ensure video fits container */
         }
         
         .controls {
             position: absolute;
-            bottom: 20px;
+            bottom: 10px; /* Reduced from 20px */
             left: 0;
             right: 0;
             display: flex;
             justify-content: center;
-            gap: 20px;
+            gap: 15px; /* Reduced from 20px */
             z-index: 10;
+            padding: 8px; /* Added some padding */
         }
-        
-        button {
-            padding: 12px 24px;
+
+          button {
+            padding: 8px 16px; /* Reduced from 12px 24px */
             border: none;
             border-radius: 50px;
             font-weight: bold;
             cursor: pointer;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
             transition: all 0.3s ease;
-            font-size: 16px;
+            font-size: 14px; /* Reduced from 16px */
         }
         
         button:hover {
@@ -190,7 +200,7 @@
         
         .recording-form textarea {
             width: 100%;
-            padding: 10px;
+           
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-bottom: 10px;
@@ -327,28 +337,6 @@
         .emotion-disgusted .emotion-value { background-color: #795548; }
         .emotion-neutral .emotion-value { background-color: #607D8B; }
         
-        @media (max-width: 768px) {
-            .main-container {
-                flex-direction: column;
-            }
-            
-            .video-container, .data-container {
-                min-width: 100%;
-            }
-            
-            .controls {
-                flex-wrap: wrap;
-            }
-            
-            .stats {
-                grid-template-columns: 1fr;
-            }
-        }
-
-
-
-
-
         .transcript-container {
             margin-top: 20px;
             padding: 15px;
@@ -393,14 +381,91 @@
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
         }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .video-container, .data-container {
+                min-width: 100%;
+            }
+            
+            .controls {
+                flex-wrap: wrap;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
 
-
+        .sentiment-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+        
+        .sentiment-display {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .sentiment-bar {
+            height: 24px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .sentiment-label {
+            width: 80px;
+            font-weight: bold;
+        }
+        
+        .sentiment-progress {
+            flex-grow: 1;
+            height: 100%;
+            background-color: #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .sentiment-value {
+            height: 100%;
+            border-radius: 12px;
+        }
+        
+        .sentiment-percentage {
+            margin-left: 10px;
+            width: 50px;
+            text-align: right;
+            font-weight: bold;
+        }
+        
+        .sentiment-negative .sentiment-value { background-color: #EA4335; }
+        .sentiment-neutral .sentiment-value { background-color: #FBBC05; }
+        .sentiment-positive .sentiment-value { background-color: #34A853; }
+        
+        .sentiment-summary {
+            margin-top: 10px;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        
+        .sentiment-negative-summary { background-color: rgba(234, 67, 53, 0.1); color: #EA4335; }
+        .sentiment-neutral-summary { background-color: rgba(251, 188, 5, 0.1); color: #FBBC05; }
+        .sentiment-positive-summary { background-color: rgba(52, 168, 83, 0.1); color: #34A853; }
     </style>
 </head>
 <body>
     <header>
         <h1>Real-time Emotion Analysis System</h1>
         <p>Monitor, record, and analyze facial emotions in real-time</p>
+        <h2 class="product-question">How did you like our product? Please share your views on it:) </h2>
     </header>
     
     <div class="main-container">
@@ -412,10 +477,6 @@
                 <button id="recordBtn" disabled>Start Recording</button>
                 <button id="stopRecordBtn" disabled>Stop Recording</button>
             </div>
-        </div>
-        
-        <div>
-            <h2>Tell us more about our product.</h2>
         </div>
 
         <div class="data-container">
@@ -452,18 +513,7 @@
                 <h3>Recording Notes</h3>
                 <textarea id="reviewText" rows="4" placeholder="Enter notes about this recording session..."></textarea>
             </div>
-           
             
-
-
-
-
-
-
-
-
-
-
             <div class="transcript-container">
                 <h3>Session Transcript</h3>
                 <div id="transcriptDisplay" class="transcript-display">
@@ -471,17 +521,6 @@
                 </div>
             </div>
             
-
-
-
-
-
-
-
-
-
-
-
             <div class="sessions-container">
                 <h3>Recorded Sessions</h3>
                 <div id="sessionsList" class="session-list">
@@ -507,6 +546,13 @@
         <div class="spinner"></div>
         <p>Processing...</p>
     </div>
+
+    <div class="sentiment-container">
+        <h3>Transcript Sentiment Analysis</h3>
+        <div id="sentimentDisplay" class="sentiment-display">
+            <p>No sentiment analysis available. Record a session to analyze transcript.</p>
+        </div>
+    </div>
     
     <script>
         // DOM Elements
@@ -527,6 +573,7 @@
         const sessionModal = document.getElementById('sessionModal');
         const modalContent = document.getElementById('modalContent');
         const closeModal = document.querySelector('.close-modal');
+        const transcriptDisplay = document.getElementById('transcriptDisplay');
         
         // State variables
         let cameraRunning = false;
@@ -534,6 +581,7 @@
         let updateInterval = null;
         let sessionStartTime = null;
         let currentSessionId = null;
+        let transcriptUpdateCounter = 0;
         
         // Emotion colors mapping
         const emotionColors = {
@@ -543,7 +591,11 @@
             surprised: '#34A853',
             fearful: '#9C27B0',
             disgusted: '#795548',
-            neutral: '#607D8B'
+            neutral: '#607D8B',
+            negative: '#EA4335',
+            neutral: '#FBBC05',
+            positive: '#34A853'
+            
         };
         
         // Event listeners
@@ -579,6 +631,19 @@
                     alert('Failed to start camera');
                 }
                 hideLoading();
+            })
+            .then(() => {
+                // Update sentiment analysis
+                fetch('/get_sentiment')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateSentimentDisplay(data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching sentiment:', error);
+                });
             })
             .catch(error => {
                 console.error('Error starting camera:', error);
@@ -624,12 +689,6 @@
             });
         }
         
-
-
-
-
-
-
         function startRecording() {
             showLoading();
             
@@ -649,8 +708,7 @@
                     currentSessionId = data.session_id;
                     sessionStartTime = new Date();
                     updateUIState();
-                    document.getElementById('transcriptDisplay').innerHTML = 
-                    '<p>Recording in progress. Transcript will be generated when recording stops.</p>';
+                    transcriptDisplay.innerHTML = '<p>Recording in progress. Transcript will be generated when recording stops.</p>';
                 } else {
                     alert('Failed to start recording');
                 }
@@ -663,11 +721,6 @@
             });
         }
         
-
-
-
-
-
         function stopRecording(silent = false) {
             showLoading();
             
@@ -688,8 +741,15 @@
                         
                         // Refresh sessions list
                         fetchSessions();
-                        updateTranscriptDisplay(null);
-
+                        
+                        // Update transcript display
+                        if (data.session_info && data.session_info.transcript) {
+                            transcriptDisplay.innerHTML = `<p>${data.session_info.transcript}</p>`;
+                        } else {
+                            transcriptDisplay.innerHTML = '<p>Transcript is being processed...</p>';
+                            // Check for transcript periodically
+                            checkTranscriptPeriodically(data.session_info.session_id);
+                        }
                     }
                 } else {
                     if (!silent) {
@@ -709,11 +769,23 @@
             });
         }
         
-
-
-
-
-
+        function checkTranscriptPeriodically(sessionId) {
+            const checkInterval = setInterval(() => {
+                fetch(`/get_transcript/${sessionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.transcript && data.transcript !== "Processing...") {
+                        clearInterval(checkInterval);
+                        transcriptDisplay.innerHTML = `<p>${data.transcript}</p>`;
+                        fetchSessions(); // Refresh sessions to show the new transcript
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking transcript:', error);
+                });
+            }, 3000); // Check every 3 seconds
+        }
+        
         function saveEmotions() {
             if (!cameraRunning) return;
             
@@ -772,6 +844,13 @@
                     const minutes = Math.floor(duration / 60).toString().padStart(2, '0');
                     const seconds = (duration % 60).toString().padStart(2, '0');
                     sessionDuration.textContent = `${minutes}:${seconds}`;
+                    
+                    // Check for transcript updates periodically
+                    transcriptUpdateCounter++;
+                    if (transcriptUpdateCounter >= 5) { // Every 5 seconds
+                        updateTranscriptDisplay(currentSessionId);
+                        transcriptUpdateCounter = 0;
+                    }
                 } else {
                     const duration = Math.floor(data.session_duration);
                     const minutes = Math.floor(duration / 60).toString().padStart(2, '0');
@@ -784,29 +863,24 @@
                     isRecording = data.is_recording;
                     updateUIState();
                 }
-
-
-
-
-
-
-
-                if (isRecording && currentSessionId) {
-                    // Periodically check for transcript updates (every 5 seconds)
-                    if (Math.floor(Date.now() / 1000) % 5 === 0) {
-                        updateTranscriptDisplay(currentSessionId);
-                    }
-                }
-
-
-
-
-
-
-
             })
             .catch(error => {
                 console.error('Error updating emotion data:', error);
+            });
+        }
+        
+        function updateTranscriptDisplay(sessionId) {
+            if (!sessionId) return;
+            
+            fetch(`/get_transcript/${sessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.transcript && data.transcript !== "Processing...") {
+                    transcriptDisplay.innerHTML = `<p>${data.transcript}</p>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching transcript:', error);
             });
         }
         
@@ -892,6 +966,12 @@
                 // Get top emotions
                 const emotionTags = createEmotionTags(session.emotion_summary);
                 
+                // Create transcript preview
+                let transcriptPreview = '';
+                if (session.transcript && session.transcript !== "Processing...") {
+                    transcriptPreview = `<div class="transcript-preview">"${session.transcript.substring(0, 100)}${session.transcript.length > 100 ? '...' : ''}"</div>`;
+                }
+                
                 item.innerHTML = `
                     <div class="session-header">
                         <div class="session-date">${formattedDate}</div>
@@ -899,27 +979,14 @@
                     </div>
                     
                     ${session.review ? `<div class="session-review">"${session.review}"</div>` : ''}
-
-
-
-
-
-
-
-
-                    ${session.transcript ? 
-                    `<div class="transcript-preview">"${session.transcript.substring(0, 100)}${session.transcript.length > 100 ? '...' : ''}"</div>` : ''}
+                    
+                    ${transcriptPreview}
+                    
                     <div class="session-emotions">
                         ${emotionTags}
                     </div>
                 `;
                 
-
-
-
-
-
-
                 // Add click handler
                 item.addEventListener('click', () => {
                     showSessionDetails(session);
@@ -1009,9 +1076,7 @@
                     <p>Video: <a href="${session.video_path}" target="_blank">View Recording</a></p>
                     <p>Audio: <a href="${session.audio_path}" target="_blank">Listen to Audio</a></p>
                 </div>
-
-
-                <!-- Add this to the modal content in the showSessionDetails function -->
+                
                 <div style="margin-top: 20px;">
                     <h3>Transcript</h3>
                     <div class="transcript-content">${session.transcript || 'No transcript available'}</div>
@@ -1055,47 +1120,50 @@
             }
         });
 
-
-
-
-
-
-
-
-        // Add this function to fetch and display transcript during recording
-    function updateTranscriptDisplay(sessionId) {
-        if (!sessionId) {
-            document.getElementById('transcriptDisplay').innerHTML = 
-                '<p>No transcript available. Start a recording to generate a transcript.</p>';
-            return;
+        function updateSentimentDisplay(sentimentData) {
+            const sentimentDisplay = document.getElementById('sentimentDisplay');
+            
+            if (!sentimentData || !sentimentData.sentiment) {
+                sentimentDisplay.innerHTML = '<p>No sentiment analysis available</p>';
+                return;
+            }
+            
+            const sentiment = sentimentData.sentiment;
+            const dominantClass = sentiment.dominant_sentiment.toLowerCase();
+            const confidence = (sentiment.confidence * 100).toFixed(1);
+            
+            let html = `
+                <div class="sentiment-bar sentiment-negative">
+                    <div class="sentiment-label">Negative</div>
+                    <div class="sentiment-progress">
+                        <div class="sentiment-value" style="width: ${sentiment.sentiment.Negative * 100}%"></div>
+                    </div>
+                    <div class="sentiment-percentage">${(sentiment.sentiment.Negative * 100).toFixed(1)}%</div>
+                </div>
+                
+                <div class="sentiment-bar sentiment-neutral">
+                    <div class="sentiment-label">Neutral</div>
+                    <div class="sentiment-progress">
+                        <div class="sentiment-value" style="width: ${sentiment.sentiment.Neutral * 100}%"></div>
+                    </div>
+                    <div class="sentiment-percentage">${(sentiment.sentiment.Neutral * 100).toFixed(1)}%</div>
+                </div>
+                
+                <div class="sentiment-bar sentiment-positive">
+                    <div class="sentiment-label">Positive</div>
+                    <div class="sentiment-progress">
+                        <div class="sentiment-value" style="width: ${sentiment.sentiment.Positive * 100}%"></div>
+                    </div>
+                    <div class="sentiment-percentage">${(sentiment.sentiment.Positive * 100).toFixed(1)}%</div>
+                </div>
+                
+                <div class="sentiment-summary sentiment-${dominantClass}-summary">
+                    Dominant Sentiment: ${sentiment.dominant_sentiment} (${confidence}% confidence)
+                </div>
+            `;
+            
+            sentimentDisplay.innerHTML = html;
         }
-        
-        fetch(`/get_transcript/${sessionId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('transcriptDisplay').innerHTML = 
-                        `<p>${data.transcript || 'Processing transcript...'}</p>`;
-                } else {
-                    document.getElementById('transcriptDisplay').innerHTML = 
-                        '<p>No transcript available yet. Transcript will be generated when recording stops.</p>';
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching transcript:', error);
-                document.getElementById('transcriptDisplay').innerHTML = 
-                    '<p>Error fetching transcript.</p>';
-            });
-    }
-
-
-
-
-
-
-
-
-    
     </script>
 </body>
 </html>
